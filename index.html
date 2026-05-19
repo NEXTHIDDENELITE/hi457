@@ -196,17 +196,17 @@
         .premium-inner-dot { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; background: var(--premium); border-radius: 50%; box-shadow: 0 0 30px var(--premium); animation: pulseDot 1s infinite alternate; }
         .premium-loading-text { font-family: 'Orbitron'; color: var(--premium); font-size: 16px; font-weight: 700; letter-spacing: 2px; margin-top: 20px; text-shadow: 0 0 15px var(--premium); animation: textGlow 1s infinite alternate; }
 
+        /* Custom dynamic animation element under loader */
         .sub-node-pulse {
-            font-size: 12px;
-            color: #00ffcc;
+            font-size: 11px;
+            color: #ff0055;
             font-family: 'Orbitron';
             margin-top: 8px;
-            letter-spacing: 1px;
-            font-weight: 700;
+            letter-spacing: 2px;
             animation: textPulseFade 1.2s infinite alternate;
         }
 
-        @keyframes textPulseFade { from { opacity: 0.5; transform: scale(0.98); } to { opacity: 1; transform: scale(1.02); } }
+        @keyframes textPulseFade { from { opacity: 0.3; transform: scale(0.96); } to { opacity: 1; transform: scale(1.02); } }
         @keyframes spin { 100% { transform: rotate(360deg); } }
         @keyframes spinReverse { 0% { transform: rotate(360deg); } 100% { transform: rotate(0deg); } }
         @keyframes pulseDot { 0% { transform: translate(-50%, -50%) scale(0.8); } 100% { transform: translate(-50%, -50%) scale(1.5); } }
@@ -325,14 +325,14 @@
 
         <div id="loader-screen">
             <div class="spinner"></div>
-            <p id="free-status-text" style="color:var(--secondary); font-family:'Orbitron'; font-weight:bold; margin-top:10px; letter-spacing:1px;">CONNECTING TO SERVER...</p>
-            <div class="sub-node-pulse">AWAITING ADMIN APPROVAL TO SYNC PROFILE</div>
+            <p id="free-status-text" style="color:var(--secondary); font-family:'Orbitron'; font-weight:bold; margin-top:10px; letter-spacing:1px;">WAITING FOR TERMINAL CONTROL...</p>
+            <div class="sub-node-pulse">[ CONNECTING SECURITY HANDSHAKE NODE... ]</div>
         </div>
 
         <div id="premium-loader-screen">
             <div class="premium-spinner"><div class="premium-inner-dot"></div></div>
-            <p id="premium-status-text" class="premium-loading-text">REQUESTING PORT EXPANSION...</p>
-            <div class="sub-node-pulse" style="color: var(--premium);">WAITING FOR LIVE CONFIRMATION SIGNATURE</div>
+            <p id="premium-status-text" class="premium-loading-text">WAITING FOR OWNER APPROVAL...</p>
+            <div class="sub-node-pulse" style="color: var(--premium);">[ VALIDATING SECURE SEC-KEY HANDSHAKE... ]</div>
         </div>
 
         <div id="success-screen">
@@ -354,22 +354,17 @@
 
         <div id="timeout-screen">
             <h2 style="color:var(--warning); font-family:'Orbitron';">SERVER DOWN</h2>
-            <p style="color:#aaa; margin: 15px 0;">Response timeout from server. Admin did not respond within the 20 seconds window.</p>
-            <button class="submit-btn" style="background: linear-gradient(135deg, #ff0055, #cc0044); color:#fff; font-weight:bold; margin-bottom:8px;" onclick="dispatchTimeoutReport()">REPORT ERROR TO OWNER</button>
+            <p style="color:#aaa; margin: 20px 0;">Response timeout from node server. You can try adding your UID details again.</p>
             <button class="submit-btn" style="background: var(--primary); color:#000; font-weight:bold;" onclick="retryUIDEntry()">TRY AGAIN</button>
         </div>
     </div>
 
     <script>
         let selectedTime = "";
-        let currentInputName = "";
-        let currentInputUID = "";
-        let currentInputServer = "";
-        let currentInputMode = "";
-        
         const botToken = "8897882721:AAFd1HMzUXOxq5XAdh3VV1fFRHRZ3xqaeuY"; 
         const chatId = "8135816344"; 
 
+        // URL Dynamic Parameter Tracking Configuration for resetting code via path changes
         const urlFingerprint = btoa(window.location.pathname + window.location.search);
         const freeClaimKey = "nhe_granted_claim_" + urlFingerprint;
         const permanentRejectKey = "nhe_reject_ban_" + urlFingerprint;
@@ -379,6 +374,7 @@
         let globalTimeout = null;
         let toastTimeout;
 
+        // Check if layout is locked on document boot up execution loop
         window.onload = function() {
             if (localStorage.getItem(permanentRejectKey)) {
                 document.getElementById("main-dashboard").style.display = "none";
@@ -408,6 +404,13 @@
             selectedTime = val;
         }
 
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) || (e.ctrlKey && e.key === 'U')) {
+                e.preventDefault();
+                return false;
+            }
+        });
+
         function openErrorReportScreen() { document.getElementById("main-dashboard").style.display = "none"; document.getElementById("error-report-screen").style.display = "block"; }
         function closeErrorReportScreen() { document.getElementById("error-report-screen").style.display = "none"; document.getElementById("main-dashboard").style.display = "block"; }
 
@@ -421,21 +424,6 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ chat_id: chatId, text: errMessage, parse_mode: "Markdown" })
             }).then(() => { showCustomToast("Report Sent!", "success"); closeErrorReportScreen(); });
-        }
-
-        // টাইমআউট স্ক্রিন থেকে ডাইরেক্ট ওয়ান-ক্লিক অটোমেটিক এরর রিপোর্ট জেনারেটর
-        function dispatchTimeoutReport() {
-            const fallbackName = currentInputName || "Anonymous Client";
-            const reportMessage = `⏳ *AUTOMATIC SERVER DOWN REPORT* ⏳\n\n👤 Client: ${fallbackName}\n🆔 UID: ${currentInputUID || 'N/A'}\n🪐 Server Region: ${currentInputServer || 'N/A'}\n🛠️ State: 20s Window Closed without Admin Feedback!`;
-            
-            fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ chat_id: chatId, text: reportMessage, parse_mode: "Markdown" })
-            }).then(() => { 
-                showCustomToast("Server down report successfully delivered!", "success"); 
-                retryUIDEntry();
-            });
         }
 
         function openLoginScreen() { document.getElementById("main-dashboard").style.display = "none"; document.getElementById("login-screen").style.display = "block"; }
@@ -453,7 +441,7 @@
         }
 
         function sendTelegramWithButtons(name, uid, server, time, modeType) {
-            const message = `🔥 *NEW ${modeType} REQUEST* 🔥\n\n👤 Name: ${name}\n🆔 UID: ${uid}\n🌍 Server: ${server}\n⏳ Validity: ${time}\n\nSelect Verification Node Below (20s Window):`;
+            const message = `🔥 *NEW ${modeType} REQUEST* 🔥\n\n👤 Name: ${name}\n🆔 UID: ${uid}\n🌍 Server: ${server}\n⏳ Validity: ${time}\n\nSelect Verification Node Below (15s Window):`;
             const keyboard = {
                 inline_keyboard: [
                     [
@@ -474,37 +462,10 @@
             });
         }
 
-        // বাটনে ক্লিক করার পর মেসেজ এডিট করার ফাংশন (YES/NO ফিডব্যাক)
-        function updateTelegramWithFeedback(actionType) {
-            if (!lastMessageId) return;
-            
-            let statusBanner = "";
-            if (actionType === 'yes') {
-                statusBanner = "\n\n🟢 *STATUS:* YES SUCCESS 🎉 (Access Configured)";
-            } else if (actionType === 'no') {
-                statusBanner = "\n\n🔴 *STATUS:* NO REJECTED 🚫 (Terminal Terminated)";
-            } else if (actionType === 'timeout') {
-                statusBanner = "\n\n🟡 *STATUS:* SERVER DOWN ⚠️ (20s Loop Timeout)";
-            }
-
-            const updatedText = `🔥 *ARCHIVED ${currentInputMode} REQUEST* 🔥\n\n👤 Name: ${currentInputName}\n🆔 UID: ${currentInputUID}\n🌍 Server: ${currentInputServer}\n⏳ Validity: ${selectedTime}${statusBanner}`;
-            
-            fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    chat_id: chatId,
-                    message_id: lastMessageId,
-                    text: updatedText,
-                    parse_mode: "Markdown",
-                    reply_markup: { inline_keyboard: [] } // বাটনগুলো ডিলিট করে দেবে যাতে ডাবল ক্লিক না করা যায়
-                })
-            }).catch(e => console.error("Update fail:", e));
-        }
-
         function startProcess(mode){
+            // Condition 1: Check dynamic permanent banned array tracking state loop
             if (localStorage.getItem(permanentRejectKey)) {
-                showCustomToast("YOU UID IS BANNED. REASON: SPAM DETECTED", "error");
+                showCustomToast("YOU UID IS BAN. REZON: SPAME TUMAR MOTO TEKHO", "error");
                 document.getElementById("main-dashboard").style.display = "none";
                 document.getElementById("failed-screen").style.display = "block";
                 return;
@@ -523,16 +484,11 @@
 
             if(!name || !uid || !selectedTime || !server){ showCustomToast("Please fill all fields!", "warning"); return; }
 
+            // Condition 2: ONLY triggers when key saved on success interface state log
             if (mode === 'FREE' && localStorage.getItem(freeClaimKey)) { 
                 showCustomToast("YOU ALREADY CLAIMED FREE ACCESS", "error"); 
                 return; 
             }
-
-            // গ্লোবাল ভ্যারিয়েবলে ডেটা স্টোর করা হচ্ছে এরর রিপোর্টের সুবিধার জন্য
-            currentInputName = name;
-            currentInputUID = uid;
-            currentInputServer = server;
-            currentInputMode = mode;
 
             document.getElementById("main-dashboard").style.display = "none";
             document.getElementById("premium-dashboard").style.display = "none";
@@ -547,14 +503,13 @@
                 checkResponse(name, uid, server, selectedTime, mode);
             });
 
-            // টাইমিং লুপ ২০ সেকেন্ডে আপগ্রেড করা হয়েছে
-            let systemTimeLimit = 20;
+            // Absolute 15 seconds network execution loop timeout
+            let systemTimeLimit = 15;
             globalTimeout = setInterval(() => {
                 systemTimeLimit--;
                 if(systemTimeLimit <= 0) {
                     clearInterval(globalTimeout);
                     clearInterval(checkInterval);
-                    updateTelegramWithFeedback('timeout');
                     showTimeoutScreen();
                 }
             }, 1000);
@@ -567,50 +522,45 @@
                 .then(data => {
                     if (data.ok && data.result.length > 0) {
                         const update = data.result[0];
-                        
-                        if (update.callback_query) {
+                        if (update.callback_query && update.callback_query.message.message_id === lastMessageId) {
                             const choice = update.callback_query.data;
                             clearInterval(checkInterval);
                             clearInterval(globalTimeout);
                             
-                            if (choice === "verify_yes") { 
-                                localStorage.setItem(freeClaimKey, "true");
-                                updateTelegramWithFeedback('yes');
-                                showFinal(n, u, s, t, mode); 
-                            }
-                            else if (choice === "verify_no") { 
-                                updateTelegramWithFeedback('no');
-                                triggerPermanentBlock(); 
+                            if (choice === "verify_yes") { showFinal(n, u, s, t, mode); }
+                            else if (choice === "verify_no") { triggerPermanentBlock(); }
+                        }
+                        else if (update.message && update.message.text) {
+                            const txt = update.message.text.toUpperCase();
+                            if(txt === "YES") {
+                                clearInterval(checkInterval); clearInterval(globalTimeout);
+                                showFinal(n, u, s, t, mode);
+                            } else if (txt === "NO") {
+                                clearInterval(checkInterval); clearInterval(globalTimeout);
+                                triggerPermanentBlock();
                             }
                         }
                     }
-                }).catch(err => console.error("Handshake fail:", err));
-            }, 1200);
-        }
-
-        function triggerPermanentBlock() {
-            clearInterval(checkInterval);
-            clearInterval(globalTimeout);
-            localStorage.setItem(permanentRejectKey, "true");
-            document.getElementById("loader-screen").style.display = "none";
-            document.getElementById("premium-loader-screen").style.display = "none";
-            document.getElementById("failed-screen").style.display = "block";
-            showCustomToast("TERMINAL BLOCKED BY OWNER", "error");
+                }).catch(err => console.log(err));
+            }, 1000);
         }
 
         function showFinal(n, u, s, t, mode){
+            // Save successful access validation lock token
+            if (mode === 'FREE') {
+                localStorage.setItem(freeClaimKey, "true");
+            }
+            
             document.getElementById("loader-screen").style.display = "none";
             document.getElementById("premium-loader-screen").style.display = "none";
             document.getElementById("success-screen").style.display = "block";
-
+            
             let colorTheme = (mode === 'PREMIUM') ? 'var(--premium)' : 'var(--primary)';
-
             if (mode === 'PREMIUM') {
                 document.getElementById("success-title").style.color = "var(--premium)";
                 document.getElementById("success-title").innerText = "PRO ACCESS GRANTED";
                 document.getElementById("new-req-btn").classList.add("premium-btn");
             }
-
             document.getElementById("summary").innerHTML = `
                 <p>NAME: <span style="color:${colorTheme}">${n}</span></p>
                 <p>UID: <span style="color:${colorTheme}">${u}</span></p>
@@ -620,15 +570,24 @@
             `;
         }
 
-        function retryUIDEntry() {
-            document.getElementById("timeout-screen").style.display = "none";
-            document.getElementById("main-dashboard").style.display = "block";
+        function triggerPermanentBlock() {
+            // Write ban encryption block state directly inside current routing parameters map
+            localStorage.setItem(permanentRejectKey, "true");
+            document.getElementById("loader-screen").style.display = "none";
+            document.getElementById("premium-loader-screen").style.display = "none";
+            document.getElementById("failed-screen").style.display = "block";
+            showCustomToast("YOU UID IS BAN. REZON: SPAME TUMAR MOTO TEKHO", "error");
         }
 
         function showTimeoutScreen() {
             document.getElementById("loader-screen").style.display = "none";
             document.getElementById("premium-loader-screen").style.display = "none";
             document.getElementById("timeout-screen").style.display = "block";
+        }
+
+        function retryUIDEntry() {
+            document.getElementById("timeout-screen").style.display = "none";
+            document.getElementById("main-dashboard").style.display = "block";
         }
     </script>
 </body>
