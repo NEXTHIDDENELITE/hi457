@@ -1,51 +1,91 @@
-const express = require("express");
-const axios = require("axios");
-const cors = require("cors");
-const mongoose = require("mongoose");
+﻿const express = require('express');
+const cors = require('cors');
+const https = require('https');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ✅ ১. আপনার কানেকশন স্ট্রিং (পাসওয়ার্ড এনকোড করা)
-const mongoURI = "mongodb+srv://nexthiddenelite:xnazim%40%23%23123@nexthiddenelite.igyxjs9.mongodb.net/NHE_DATABASE?retryWrites=true&w=majority";
-
-mongoose.connect(mongoURI)
-    .then(() => console.log("✅ Database Connected!"))
-    .catch(err => console.log("❌ DB Error:", err));
-
-// ✅ ২. ডাটা মডেল তৈরি
-const User = mongoose.model('User', new mongoose.Schema({
-    uid: { type: String, unique: true, required: true },
-    date: { type: Date, default: Date.now }
-}));
-
-const BOT_TOKEN = "8475138855:AAFQMWnAHUJqGsx06QZFw60lXugY15ynkig";
+// 🔒 আপনার সিক্রেট টেলিগ্রাম ডেটা (সার্ভারের ভেতরে একদম সুরক্ষিত)
+const BOT_TOKEN = "8897882721:AAFd1HMzUXOxq5XAdh3VV1fFRHRZ3xqaeuY";
 const CHAT_ID = "8135816344";
 
-// ✅ ৩. মেইন ফাংশন (ডুপ্লিকেট চেক করবে)
-app.post("/send", async (req, res) => {
-    const { uid } = req.body;
-    if (!uid) return res.json({ status: "no uid" });
+// টেলিগ্রামে ডাটা পাঠানোর সিকিউর ফাংশন
+function telegramRequest(endpoint, payload) {
+    return new Promise((resolve, reject) => {
+        const data = JSON.stringify(payload);
+        const options = {
+            hostname: 'api.telegram.org',
+            port: 443,
+            path: `/bot${BOT_TOKEN}/${endpoint}`,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': data.length
+            }
+        };
 
-    try {
-        // ডুপ্লিকেট চেক
-        const exists = await User.findOne({ uid });
-        if (exists) return res.json({ status: "already_added" });
-
-        // ডাটাবেসে সেভ
-        await new User({ uid }).save();
-
-        // টেলিগ্রামে সেন্ড
-        await axios.get(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-            params: { chat_id: CHAT_ID, text: `🔥 NEW TRIAL REQUEST\nUID: ${uid}` }
+        const req = https.request(options, (res) => {
+            let body = '';
+            res.on('data', (chunk) => body += chunk);
+            res.on('end', () => resolve(JSON.parse(body)));
         });
 
-        res.json({ status: "sent" });
-    } catch (err) {
-        res.json({ status: "error" });
+        req.on('error', (error) => reject(error));
+        req.write(data);
+        req.end();
+    });
+}
+
+// ১. নতুন রিকোয়েস্ট পাঠানোর রুট
+app.post('/api/send-request', async (req, res) => {
+    try {
+        const { text, reply_markup } = req.body;
+        const data = await telegramRequest('sendMessage', {
+            chat_id: CHAT_ID,
+            text: text,
+            parse_mode: 'HTML',
+            reply_markup: reply_markup
+        });
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message });
+    }
+});
+
+// ২. এডমিনের রেসপন্স (YES/NO) চেক করার রুট
+app.get('/api/check-response', async (req, res) => {
+    try {
+        https.get(`https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?offset=-1`, (telegramRes) => {
+            let body = '';
+            telegramRes.on('data', (chunk) => body += chunk);
+            telegramRes.on('end', () => {
+                res.json(JSON.parse(body));
+            });
+        }).on('error', (error) => {
+            res.status(500).json({ ok: false, error: error.message });
+        });
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message });
+    }
+});
+
+// ৩. টেলিগ্রাম মেসেজ এডিট/আপডেট করার রুট
+app.post('/api/edit-request', async (req, res) => {
+    try {
+        const { message_id, text } = req.body;
+        const data = await telegramRequest('editMessageText', {
+            chat_id: CHAT_ID,
+            message_id: message_id,
+            text: text,
+            parse_mode: 'HTML',
+            reply_markup: { inline_keyboard: [] }
+        });
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ ok: false, error: error.message });
     }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, "0.0.0.0", () => console.log("Server Active!"));
+app.listen(PORT, () => console.log(`NHE Secure Server running on port ${PORT}`));
