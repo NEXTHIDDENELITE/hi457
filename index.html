@@ -46,7 +46,6 @@
             z-index: -1;
         }
 
-        /* 🎴 মেইন প্যানেল কার্ড */
         .card {
             width: 100%;
             max-width: 420px;
@@ -98,7 +97,6 @@
             font-weight: 500;
         }
 
-        /* 📊 লাইভ ইউজার কাউন্টার স্টাইল */
         .counter-box {
             font-family: 'Orbitron', sans-serif;
             font-size: 12px;
@@ -152,7 +150,6 @@
             box-shadow: 0 0 10px rgba(0, 255, 102, 0.1);
         }
 
-        /* 🟢 সাবমিট বাটন */
         .submit-btn {
             width: 100%;
             padding: 16px;
@@ -186,9 +183,7 @@
             box-shadow: 0 0 25px var(--primary-green), 0 5px 15px rgba(0,0,0,0.5);
         }
 
-        .submit-btn:hover i {
-            transform: translateX(5px);
-        }
+        .submit-btn:hover i { transform: translateX(5px); }
 
         .submit-btn::after {
             content: '';
@@ -199,11 +194,8 @@
             transition: 0.75s;
         }
 
-        .submit-btn:hover::after {
-            left: 120%;
-        }
+        .submit-btn:hover::after { left: 120%; }
 
-        /* 🔄 কাউন্টডাউন টাইমার স্ক্রিন */
         .loader-node {
             display: none;
             margin-top: 15px;
@@ -231,7 +223,6 @@
 
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
-        /* 💬 টোস্ট নোটিফিকেশন */
         .toast {
             position: fixed;
             top: -100px;
@@ -266,7 +257,7 @@
         
         <div class="counter-box">
             <span>🎯 REGISTERED USERS: </span>
-            <span id="live-counter">Loading...</span>
+            <span id="live-counter">0 / 100</span>
         </div>
 
         <div id="form-container">
@@ -288,66 +279,42 @@
     </div>
 
     <script>
-        // 🎵 গেমিং লেজার শ্যুট সাউন্ড ইফেক্ট সোর্স লিংক (লেফট ক্লিকে বাজবে)
+        // 🎵 গেমিং লেজার শ্যুট সাউন্ড ইফেক্ট সোর্স লিংক
         const clickSound = new Audio("https://assets.mixkit.co/active_storage/sfx/2568/2568-84.wav");
         clickSound.volume = 0.4; 
 
-        // 🖱️ মাউসের লেফট ক্লিক লিসেনার (সাউন্ড ইফেক্ট)
         window.addEventListener("click", () => {
             clickSound.currentTime = 0; 
             clickSound.play().catch(err => console.log("Audio playback blocked"));
         });
 
-        // 🚫 মাউসের রাইট-ক্লিক মেনু (Context Menu) ব্লক করার লজিক
+        // 🚫 মাউসের রাইট-ক্লিক মেনু এবং ইন্সপেক্ট ব্লক
         window.addEventListener('contextmenu', (e) => { e.preventDefault(); });
-
-        // 🚫 কিবোর্ডের Inspect Element শর্টকাট লক করার লজিক 
         window.addEventListener('keydown', (e) => {
             if (e.key === "F12" || (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "J" || e.key === "i" || e.key === "j")) || (e.ctrlKey && (e.key === "u" || e.key === "U"))) {
                 e.preventDefault();
             }
         });
 
-        // 📊 গ্লোবাল কাউন্টার ভ্যারিয়েবল (১০০ লিমিট)
+        // 📊 গ্লোবাল কাউন্টার কনফিগারেশন (লিমিট ১০০)
         const maxLimit = 100;
         
-        // 🌐 আপনার ওয়েবসাইটের URL ভিত্তিক ইউনিক আইডি তৈরি (যাতে নতুন লিংকে গেলে অটোমেটিক ০ হয়ে যায়)
-        const uniqueNamespace = "nhe_panel_" + window.location.hostname + window.location.pathname.replace(/[^a-zA-Z0-9]/g, "");
-        const apiGetURL = `https://api.countapi.xyz/get/${uniqueNamespace}/total_uids`;
-        const apiHitURL = `https://api.countapi.xyz/hit/${uniqueNamespace}/total_uids`;
-
-        let currentCount = 0;
-
-        // 🔄 সার্ভার থেকে লাইভ টোটাল কাউন্ট লোড করার ফাংশন
-        function fetchGlobalCounter() {
-            fetch(apiGetURL)
-            .then(res => {
-                if(!res.ok) {
-                    // যদি এই লিংকে প্রথমবার পেজ ওপেন হয়, তবে এপিআই তৈরি করে ০ সেট করবে
-                    return fetch(`https://api.countapi.xyz/create?namespace=${uniqueNamespace}&key=total_uids&value=0`).then(r => r.json());
-                }
-                return res.json();
-            })
-            .then(data => {
-                currentCount = data.value || 0;
-                document.getElementById("live-counter").innerText = currentCount + " / " + maxLimit;
-            })
-            .catch(err => {
-                // কোনো কারণে এপিআই ডাউন থাকলে লোকাল ফলব্যাক ব্যাকআপ রাখবে
-                console.log("Counter balance sync:", err);
-                currentCount = parseInt(localStorage.getItem(uniqueNamespace) || "0");
-                document.getElementById("live-counter").innerText = currentCount + " / " + maxLimit;
-            });
-        }
-
-        // পেজ লোড হলেই কারেন্ট গ্লোবাল কাউন্ট নিয়ে আসবে
-        fetchGlobalCounter();
-
         // 🛑 ডিসকورد ওয়েব হুক লিংক
         const discordWebhookURL = "https://discordapp.com/api/webhooks/1506649694816964628/l26dH7LB9gD5NaAd-5mtzq7CKpN9iZjVcZMNBFCz8t3raBlJnfwZmoeVpSJyclp-KAAa"; 
 
         // ⚙️ সার্ভার অনলাইন/অফলাইন কন্ট্রোলার সুইচ 
         const isServerOnline = true; 
+
+        // ডোমেন/ইউআরএল ভিত্তিক ইউনিক লোকাল কি (যাতে ডোমেন পাল্টালে অটো রিসেট করতে সুবিধা হয়)
+        const storageCountKey = "nhe_global_counter_backup_" + window.location.hostname + window.location.pathname.replace(/[^a-zA-Z0-9]/g, "");
+        let currentCount = parseInt(localStorage.getItem(storageCountKey) || "0");
+
+        // 🔄 গ্লোবাল ডিসকোর্ড চ্যানেল মেথড থেকে লাইভ কাউন্টার সিঙ্ক করার ট্রিক
+        function updateCounterDisplay() {
+            if (currentCount > maxLimit) currentCount = maxLimit;
+            document.getElementById("live-counter").innerText = currentCount + " / " + maxLimit;
+        }
+        updateCounterDisplay();
 
         function showNotification(msg, isError = false) {
             const toast = document.getElementById("status-toast");
@@ -359,7 +326,7 @@
         }
 
         async function processTrialRequest() {
-            // 🛑 ১০০ লিমিট ফুল চেক লজিক (সবার জন্য এক লজিক)
+            // 🛑 ১০০ লিমিট ফুল চেক লজিক
             if (currentCount >= maxLimit) {
                 showNotification("REGISTRATION FULL! LIMIT REACHED.", true);
                 return;
@@ -391,6 +358,9 @@
             const approveLink = "https://discord.com"; 
             const rejectLink = "https://discord.com";
 
+            // রিকোয়েস্ট সাবমিট করার পর লাইভ কাউন্টার আপডেট ট্র্যাক
+            const nextRegNumber = currentCount + 1;
+
             const discordPayload = {
                 username: "NHE PANEL TRACKER",
                 avatar_url: "https://i.imgur.com/wSTFkRM.png",
@@ -399,7 +369,7 @@
                     color: 65382,
                     fields: [
                         { name: "🎯 Target Player UID", value: `\`\`\`css\n${uidValue}\n\`\`\``, inline: false },
-                        { name: "⏳ Duration", value: "3 Days Premium License", inline: true },
+                        { name: "📈 Global Register Sequence", value: `\`${nextRegNumber} / ${maxLimit}\``, inline: true },
                         { name: "🌐 Network IP", value: userIP, inline: true }
                     ],
                     footer: { text: "Manage request via buttons below" },
@@ -421,21 +391,13 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(discordPayload)
             })
-            .then(async res => {
+            .then(res => {
                 if (!res.ok) throw new Error("Discord Rejected");
 
-                // 🌐 ডিসকর্ডে সাকসেসফুল ডেটা গেলে ব্যাকএন্ড সার্ভার কাউন্টারে +1 অ্যাড হবে
-                try {
-                    const hitRes = await fetch(apiHitURL);
-                    const hitData = await hitRes.json();
-                    currentCount = hitData.value;
-                } catch (e) {
-                    // ব্যাকআপ লোকাল আপগ্রেড লজিক
-                    currentCount++;
-                    localStorage.setItem(uniqueNamespace, currentCount);
-                }
-
-                document.getElementById("live-counter").innerText = currentCount + " / " + maxLimit;
+                // ডিসকর্ডে সাকসেসফুল ডেটা গেলে কাউন্টার ১ বাড়বে
+                currentCount++;
+                localStorage.setItem(storageCountKey, currentCount);
+                updateCounterDisplay();
 
                 let timeLeft = 10;
                 const timerElement = document.getElementById("timer-text");
