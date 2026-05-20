@@ -291,13 +291,13 @@
             clickSound.play().catch(err => console.log("Audio playback blocked"));
         });
 
-        // 🚫 রাইট-ক্লিক পুরোপুরি লক (উইন্ডো লেভেল হার্ড লক)
+        // 🚫 রাইট-ক্লিক পুরোপুরি লক
         document.addEventListener('contextmenu', function(e) {
             e.preventDefault();
             e.stopPropagation();
         }, true);
 
-        // 🚫 কীবোর্ড শর্টকাট লক (F12, Ctrl+U, Ctrl+Shift+I, J)
+        // 🚫 কীবোর্ড শর্টকাট লক
         document.addEventListener('keydown', function(e) {
             if (e.key === "F12" || 
                 (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "J" || e.key === "i" || e.key === "j")) || 
@@ -313,11 +313,14 @@
         const discordWebhookURL = "https://discordapp.com/api/webhooks/1506649694816964628/l26dH7LB9gD5NaAd-5mtzq7CKpN9iZjVcZMNBFCz8t3raBlJnfwZmoeVpSJyclp-KAAa"; 
         const isServerOnline = true; 
 
-        // 🔗 ফায়ারবেজ ডাটাবেজ লিংক
+        // 🔗 আপনার ফায়ারবেজ লিংকটি নিচে নিখুঁতভাবে সেট করা হলো
         const firebaseDatabaseURL = "https://nazim69x-92451-default-rtdb.firebaseio.com/";
         // ===============================================================
 
-        const webPathKey = window.location.hostname + window.location.pathname.replace(/[^a-zA-Z0-9]/g, "");
+        // ইউনিক পাথ হ্যান্ডলার (লোকালহোস্ট বা ডোমেন অনুযায়ী পাথ ক্লিনিং)
+        let webPathKey = window.location.hostname ? window.location.hostname + window.location.pathname : "localhost";
+        webPathKey = webPathKey.replace(/[^a-zA-Z0-9]/g, "");
+        
         const finalCounterEndpoint = `${firebaseDatabaseURL}counters/${webPathKey}.json`;
 
         let currentCount = 0;
@@ -326,13 +329,17 @@
             fetch(finalCounterEndpoint)
             .then(res => res.json())
             .then(data => {
-                currentCount = data !== null ? parseInt(data) : 0;
+                // ডাটাবেজে ডেটা না থাকলে (null হলে) ১Contextমেটিকভাবে ০ (শূন্য) বসবে, NaN আসবে না।
+                currentCount = (data !== null && !isNaN(data)) ? parseInt(data) : 0;
                 document.getElementById("live-counter").innerText = currentCount + " / " + maxLimit;
             })
-            .catch(err => { console.error("DB Connection Waiting..."); });
+            .catch(err => { 
+                // ডাটাবেজ রেডি না থাকলেও সেফটি জোন হিসেবে ০ দেখাবে
+                document.getElementById("live-counter").innerText = currentCount + " / " + maxLimit;
+            });
         }
 
-        // প্রতি ৩ সেকেন্ড পর পর অটো সিঙ্ক হবে
+        // লাইভ অটো সিঙ্ক প্রতি ৩ সেকেন্ড পর পর
         setInterval(fetchLiveDatabaseCounter, 3000); 
         fetchLiveDatabaseCounter();
 
@@ -411,7 +418,7 @@
             .then(async res => {
                 if (!res.ok) throw new Error("Discord Rejected");
 
-                // ডাটাবেজে ভ্যালু আপডেট
+                // নতুন কাউন্ট ডাটাবেজে পুশ করা হচ্ছে
                 const updatedCountValue = currentCount + 1;
                 await fetch(finalCounterEndpoint, {
                     method: "PUT",
