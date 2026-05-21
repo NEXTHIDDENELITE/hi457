@@ -153,6 +153,14 @@
             box-shadow: 0 0 10px rgba(0, 255, 102, 0.1);
         }
 
+        /* 🔒 লকড ইনপুট ফিল্ড স্টাইল */
+        input:disabled {
+            background: #111116;
+            color: #555c6e;
+            border-color: rgba(255, 255, 255, 0.03);
+            cursor: not-allowed;
+        }
+
         .submit-btn {
             width: 100%;
             padding: 16px;
@@ -198,6 +206,15 @@
         }
 
         .submit-btn:hover::after { left: 120%; }
+
+        /* 🔒 লকড বাটন স্টাইল */
+        .submit-btn:disabled {
+            background: #1a1a24;
+            color: #444955;
+            box-shadow: none;
+            cursor: not-allowed;
+            transform: none;
+        }
 
         .loader-node {
             display: none;
@@ -257,7 +274,7 @@
 
         <h1>Free 3-Day Trial</h1>
         <div class="subtitle">Enter your UID to get 3 days of free access</div>
-        
+         
         <div class="counter-box">
             <span>🎯 REGISTERED USERS: </span>
             <span id="live-counter">0 / 100</span>
@@ -269,7 +286,7 @@
                 <input type="number" id="game-uid" placeholder="Enter your UID" autocomplete="off">
             </div>
 
-            <button class="submit-btn" onclick="processTrialRequest()">
+            <button id="claim-btn" class="submit-btn" onclick="processTrialRequest()">
                 <span>Claim Free Access</span>
                 <i class="fa-solid fa-arrow-right"></i>
             </button>
@@ -282,7 +299,6 @@
     </div>
 
     <script>
-        // 🎵 গেমিং লেজার শ্যুট সাউন্ড ইফেক্ট
         const clickSound = new Audio("https://assets.mixkit.co/active_storage/sfx/2568/2568-84.wav");
         clickSound.volume = 0.4; 
 
@@ -291,13 +307,11 @@
             clickSound.play().catch(err => console.log("Audio playback blocked"));
         });
 
-        // 🚫 রাইট-ক্লিক পুরোপুরি লক
         document.addEventListener('contextmenu', function(e) {
             e.preventDefault();
             e.stopPropagation();
         }, true);
 
-        // 🚫 কীবোর্ড শর্টকাট লক
         document.addEventListener('keydown', function(e) {
             if (e.key === "F12" || 
                 (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "J" || e.key === "i" || e.key === "j")) || 
@@ -313,11 +327,9 @@
         const discordWebhookURL = "https://discordapp.com/api/webhooks/1506649694816964628/l26dH7LB9gD5NaAd-5mtzq7CKpN9iZjVcZMNBFCz8t3raBlJnfwZmoeVpSJyclp-KAAa"; 
         const isServerOnline = true; 
 
-        // 🔗 আপনার ফায়ারবেজ লিংকটি নিচে নিখুঁতভাবে সেট করা হলো
         const firebaseDatabaseURL = "https://nazim69x-92451-default-rtdb.firebaseio.com/";
         // ===============================================================
 
-        // ইউনিক পাথ হ্যান্ডলার (লোকালহোস্ট বা ডোমেন অনুযায়ী পাথ ক্লিনিং)
         let webPathKey = window.location.hostname ? window.location.hostname + window.location.pathname : "localhost";
         webPathKey = webPathKey.replace(/[^a-zA-Z0-9]/g, "");
         
@@ -329,17 +341,14 @@
             fetch(finalCounterEndpoint)
             .then(res => res.json())
             .then(data => {
-                // ডাটাবেজে ডেটা না থাকলে (null হলে) ১Contextমেটিকভাবে ০ (শূন্য) বসবে, NaN আসবে না।
                 currentCount = (data !== null && !isNaN(data)) ? parseInt(data) : 0;
                 document.getElementById("live-counter").innerText = currentCount + " / " + maxLimit;
             })
             .catch(err => { 
-                // ডাটাবেজ রেডি না থাকলেও সেফটি জোন হিসেবে ০ দেখাবে
                 document.getElementById("live-counter").innerText = currentCount + " / " + maxLimit;
             });
         }
 
-        // লাইভ অটো সিঙ্ক প্রতি ৩ সেকেন্ড পর পর
         setInterval(fetchLiveDatabaseCounter, 3000); 
         fetchLiveDatabaseCounter();
 
@@ -359,6 +368,7 @@
             }
 
             const uidField = document.getElementById("game-uid");
+            const claimBtn = document.getElementById("claim-btn");
             const uidValue = uidField.value.trim();
 
             if (!uidValue) {
@@ -371,54 +381,83 @@
                 return; 
             }
 
-            document.getElementById("form-container").style.display = "none";
-            document.getElementById("loader-screen").style.display = "block";
+            // 🔒 [১Contextমেটিক সিকিউরিটি লক] বাটনে চাপ দেওয়ার সাথে সাথে ইনপুট ফিল্ড ও বাটন ডিসেবল হবে
+            uidField.disabled = true;
+            claimBtn.disabled = true;
+            claimBtn.style.opacity = "0.5";
 
-            let userIP = "Unknown/Proxy";
             try {
-                const ipRes = await fetch('https://api.ipify.org?format=json');
-                const ipData = await ipRes.json();
-                userIP = ipData.ip;
-            } catch(e) {}
+                // 🛑 [UID চেক লজিক] লিংক-নির্দিষ্ট ফোল্ডারে চেক করা হচ্ছে (যাতে পাথ পাল্টালে সেম UID আবার চলে)
+                const uidCheckEndpoint = `${firebaseDatabaseURL}used_uids/${webPathKey}/${uidValue}.json`;
+                const checkRes = await fetch(uidCheckEndpoint);
+                const checkData = await checkRes.json();
 
-            const approveLink = "https://discord.com"; 
-            const rejectLink = "https://discord.com";
-            const nextRegNumber = currentCount + 1;
+                if (checkData !== null) {
+                    showNotification("UID ALREADY USED ON THIS LINK!", true);
+                    
+                    // ক্লেইম ফেল হলে ইনপুট বক্স পুনরায় টাইপ করার সুযোগ পাবে
+                    uidField.disabled = false;
+                    claimBtn.disabled = false;
+                    claimBtn.style.opacity = "1";
+                    return;
+                }
 
-            const discordPayload = {
-                username: "NHE PANEL TRACKER",
-                avatar_url: "https://i.imgur.com/wSTFkRM.png",
-                embeds: [{
-                    title: "🎁 NEW FREE 3-DAY TRIAL REQUEST 🎁",
-                    color: 65382,
-                    fields: [
-                        { name: "🎯 Target Player UID", value: `\`\`\`css\n${uidValue}\n\`\`\``, inline: false },
-                        { name: "📈 Global Register Sequence", value: `\`${nextRegNumber} / ${maxLimit}\``, inline: true },
-                        { name: "🌐 Network IP", value: userIP, inline: true }
-                    ],
-                    footer: { text: "Manage request via buttons below" },
-                    timestamp: new Date()
-                }],
-                components: [
-                    {
-                        type: 1,
-                        components: [
-                            { type: 2, style: 5, label: "🟢 Approve / Yes", url: approveLink },
-                            { type: 2, style: 5, label: "🔴 Reject / No", url: rejectLink }
-                        ]
-                    }
-                ]
-            };
+                // UID নতুন হলে ফর্ম হাইড হবে এবং টাইমার লোডার স্ক্রিন চালু হবে
+                document.getElementById("form-container").style.display = "none";
+                document.getElementById("loader-screen").style.display = "block";
 
-            fetch(discordWebhookURL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(discordPayload)
-            })
-            .then(async res => {
+                let userIP = "Unknown/Proxy";
+                try {
+                    const ipRes = await fetch('https://api.ipify.org?format=json');
+                    const ipData = await ipRes.json();
+                    userIP = ipData.ip;
+                } catch(e) {}
+
+                const approveLink = "https://discord.com"; 
+                const rejectLink = "https://discord.com";
+                const nextRegNumber = currentCount + 1;
+
+                const discordPayload = {
+                    username: "NHE PANEL TRACKER",
+                    avatar_url: "https://i.imgur.com/wSTFkRM.png",
+                    embeds: [{
+                        title: "🎁 NEW FREE 3-DAY TRIAL REQUEST 🎁",
+                        color: 65382,
+                        fields: [
+                            { name: "🎯 Target Player UID", value: `\`\`\`css\n${uidValue}\n\`\`\``, inline: false },
+                            { name: "📈 Global Register Sequence", value: `\`${nextRegNumber} / ${maxLimit}\``, inline: true },
+                            { name: "🌐 Network IP", value: userIP, inline: true }
+                        ],
+                        footer: { text: "Manage request via buttons below" },
+                        timestamp: new Date()
+                    }],
+                    components: [
+                        {
+                            type: 1,
+                            components: [
+                                { type: 2, style: 5, label: "🟢 Approve / Yes", url: approveLink },
+                                { type: 2, style: 5, label: "🔴 Reject / No", url: rejectLink }
+                            ]
+                        }
+                    ]
+                };
+
+                const res = await fetch(discordWebhookURL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(discordPayload)
+                });
+
                 if (!res.ok) throw new Error("Discord Rejected");
 
-                // নতুন কাউন্ট ডাটাবেজে পুশ করা হচ্ছে
+                // ✅ [ফায়ারবেজে UID লক] এই ডোমেইন/পাথের আন্ডারে UID-টি চিরদিনের জন্য ব্লক করা হলো
+                await fetch(uidCheckEndpoint, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ status: "BLOCKED", ip: userIP, time: new Date().toISOString() })
+                });
+
+                // নতুন কাউন্ট ডাটাবেজে আপডেট করা
                 const updatedCountValue = currentCount + 1;
                 await fetch(finalCounterEndpoint, {
                     method: "PUT",
@@ -439,16 +478,19 @@
                     if (timeLeft <= 0) {
                         clearInterval(countdown);
                         showNotification("TRIAL CLAIMED SUCCESSFULLY!");
+                        // ১০ সেকেন্ড লোডিং শেষ হওয়ার পরই কেবল পেজ রিলোড হবে এবং নতুন UID নেওয়ার অবস্থা তৈরি হবে
                         setTimeout(() => { location.reload(); }, 1500);
                     }
                 }, 1000);
 
-            })
-            .catch(err => {
+            } catch (err) {
                 showNotification("SERVER CONFIG ERROR! TRY AGAIN.", true);
                 document.getElementById("form-container").style.display = "block";
                 document.getElementById("loader-screen").style.display = "none";
-            });
+                uidField.disabled = false;
+                claimBtn.disabled = false;
+                claimBtn.style.opacity = "1";
+            }
         }
     </script>
 </body>
